@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CAT Mock Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg: #0f0f10;
+    --surface: #18181b;
+    --surface2: #222228;
+    --surface3: #2a2a32;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #f0eff4;
+    --text2: #a09fb8;
+    --text3: #5e5d72;
+    --accent: #7c6cf5;
+    --accent-glow: rgba(124,108,245,0.18);
+    --teal: #2dd4a7;
+    --amber: #f5a623;
+    --coral: #f06060;
+    --green: #4ade80;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 15px; line-height: 1.6; min-height: 100vh; }
+
+  /* ── HEADER ── */
+  header { padding: 28px 32px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 14px; }
+  .logo { width: 36px; height: 36px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; color: #fff; flex-shrink: 0; }
+  header h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.3px; }
+  header p { font-size: 12px; color: var(--text3); margin-top: 1px; }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  #resetBtn { display: none; background: transparent; border: 1px solid var(--border2); color: var(--text2); font-size: 12px; padding: 6px 14px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s; }
+  #resetBtn:hover { border-color: var(--coral); color: var(--coral); }
+
+  /* ── UPLOAD ── */
+  #uploadSection { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 80px); padding: 40px 20px; }
+  .upload-card { max-width: 560px; width: 100%; }
+  .upload-card h2 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 8px; }
+  .upload-card h2 span { color: var(--accent); }
+  .upload-card > p { color: var(--text2); font-size: 14px; margin-bottom: 32px; }
+  .drop-zone { border: 1.5px dashed var(--border2); border-radius: var(--radius); padding: 40px 32px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; background: var(--surface); }
+  .drop-zone:hover, .drop-zone.drag { border-color: var(--accent); background: var(--accent-glow); }
+  .drop-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .drop-icon { font-size: 40px; margin-bottom: 12px; }
+  .drop-zone h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .drop-zone p { font-size: 13px; color: var(--text3); }
+  .or-divider { display: flex; align-items: center; gap: 12px; color: var(--text3); font-size: 12px; margin: 20px 0; }
+  .or-divider::before, .or-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .sample-btn { width: 100%; padding: 12px; background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text2); font-size: 14px; cursor: pointer; transition: all 0.15s; }
+  .sample-btn:hover { background: var(--surface3); color: var(--text); border-color: var(--accent); }
+  .format-note { margin-top: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px; }
+  .format-note h4 { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+  .format-note table { width: 100%; font-size: 11px; color: var(--text3); border-collapse: collapse; }
+  .format-note th { color: var(--text2); font-weight: 500; padding: 4px 8px 4px 0; text-align: left; }
+  .format-note td { padding: 3px 8px 3px 0; }
+
+  /* ── DASHBOARD ── */
+  #dashboard { display: none; padding: 28px 32px 60px; max-width: 1200px; }
+  .mock-label { font-size: 12px; color: var(--text3); margin-bottom: 20px; }
+  .mock-label span { color: var(--accent); font-weight: 600; }
+
+  /* Stats */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; }
+  .stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .stat-value { font-size: 28px; font-weight: 700; letter-spacing: -1px; }
+  .stat-sub { font-size: 11px; color: var(--text2); margin-top: 3px; }
+  .stat.accent .stat-value { color: var(--accent); }
+  .stat.teal .stat-value { color: var(--teal); }
+  .stat.amber .stat-value { color: var(--amber); }
+  .stat.coral .stat-value { color: var(--coral); }
+
+  /* Section pills */
+  .section-pills { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+  .pill { padding: 7px 18px; border: 1px solid var(--border2); border-radius: 999px; font-size: 13px; color: var(--text2); background: transparent; cursor: pointer; transition: all 0.15s; }
+  .pill:hover { color: var(--text); border-color: var(--text3); }
+  .pill.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
+  .pill.varc.active { background: var(--teal); border-color: var(--teal); }
+  .pill.lrdi.active { background: var(--amber); border-color: var(--amber); color: #1a1200; }
+  .pill.quant.active { background: var(--coral); border-color: var(--coral); }
+
+  /* Charts */
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .chart-card.full { grid-column: 1 / -1; }
+  .card-title { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+  .chart-box { position: relative; width: 100%; height: 220px; }
+  .chart-box.tall { height: 260px; }
+
+  /* Legend */
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text2); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+  /* Attempt table */
+  .attempt-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .attempt-table th { font-size: 11px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.4px; padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  .attempt-table td { padding: 11px 12px; border-bottom: 1px solid var(--border); color: var(--text2); vertical-align: middle; }
+  .attempt-table tr:last-child td { border-bottom: none; }
+  .attempt-table tr:hover td { background: var(--surface2); }
+  .score-cell { font-size: 15px; font-weight: 600; color: var(--text); }
+  .pct-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .pct-high { background: rgba(124,108,245,0.18); color: var(--accent); }
+  .pct-mid  { background: rgba(45,212,167,0.15); color: var(--teal); }
+  .pct-low  { background: rgba(240,96,96,0.15); color: var(--coral); }
+  .bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .bar-bg { width: 70px; height: 5px; background: var(--surface3); border-radius: 3px; overflow: hidden; flex-shrink: 0; }
+  .bar-fill { height: 100%; border-radius: 3px; }
+
+  /* Section breakdown */
+  .breakdown-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+  .breakdown-card { background: var(--surface2); border-radius: var(--radius-sm); padding: 14px 16px; }
+  .bc-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+  .bc-value { font-size: 18px; font-weight: 700; }
+  .bc-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  /* Toast */
+  #toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface3); border: 1px solid var(--border2); color: var(--text); font-size: 13px; padding: 12px 18px; border-radius: var(--radius-sm); display: none; z-index: 999; }
+
+  @media (max-width: 768px) {
+    header { padding: 18px 16px; }
+    #dashboard { padding: 16px 16px 60px; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .charts-row { grid-template-columns: 1fr; }
+    .chart-card.full { grid-column: 1; }
+    .breakdown-row { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 480px) {
+    .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .stat-value { font-size: 22px; }
+    .breakdown-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">C</div>
+  <div>
+    <h1>CAT Mock Tracker</h1>
+    <p>Score & percentile trends across mock attempts</p>
+  </div>
+  <div class="header-right">
+    <button id="resetBtn" onclick="resetApp()">← Upload new sheet</button>
+  </div>
+</header>
+
+<!-- UPLOAD -->
+<div id="uploadSection">
+  <div class="upload-card">
+    <h2>Track your <span>CAT mocks</span></h2>
+    <p>Upload your Excel sheet to instantly visualise score and percentile trends across VARC, LRDI, and Quant.</p>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+      <div class="drop-icon">📊</div>
+      <h3>Drop your Excel file here</h3>
+      <p>.xlsx or .csv · data stays in your browser</p>
+    </div>
+
+    <div class="or-divider">or</div>
+    <button class="sample-btn" onclick="loadSample()">Load sample data (9 mocks)</button>
+
+    <div class="format-note">
+      <h4>Expected Excel format</h4>
+      <table>
+        <tr><th>Column order →</th><th>Section</th><th>Questions</th><th>Attempts</th><th>Correct</th><th>Incorrect</th><th>Skipped</th><th>Score</th><th>Percentile</th></tr>
+        <tr><td>Each mock block</td><td>Overall</td><td>68</td><td>54</td><td>45</td><td>9</td><td>14</td><td>129</td><td>99.2</td></tr>
+        <tr><td>starts with a row</td><td>VARC</td><td>24</td><td>16</td><td>12</td><td>4</td><td>8</td><td>32</td><td>82.25</td></tr>
+        <tr><td>labelled "Mock Attempt N"</td><td>LRDI</td><td>22</td><td>18</td><td>16</td><td>2</td><td>4</td><td>46</td><td>99.52</td></tr>
+        <tr><td></td><td>Quant</td><td>22</td><td>20</td><td>17</td><td>3</td><td>2</td><td>51</td><td>97.84</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <p class="mock-label" id="mockLabel"></p>
+
+  <div class="stats-grid" id="statsGrid"></div>
+
+  <div class="section-pills" id="pills">
+    <button class="pill active" data-sec="overall" onclick="switchSection('overall', this)">Overall</button>
+    <button class="pill varc" data-sec="varc" onclick="switchSection('varc', this)">VARC</button>
+    <button class="pill lrdi" data-sec="lrdi" onclick="switchSection('lrdi', this)">LRDI</button>
+    <button class="pill quant" data-sec="quant" onclick="switchSection('quant', this)">Quant</button>
+  </div>
+
+  <div id="sectionContent"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────
+const SAMPLE = [
+  {name:"Mock 1",date:"25/12/2026",label:"",overall:{score:32,pct:65.55,q:68,att:65,corr:21,inc:44},varc:{score:3,pct:49.13,q:24,att:23,corr:6,inc:17},lrdi:{score:12,pct:63.15,q:22,att:21,corr:7,inc:14},quant:{score:17,pct:84.89,q:22,att:21,corr:8,inc:13}},
+  {name:"Mock 2",date:"24/02/2026",label:"CAT 2024 slot 2",overall:{score:49,pct:85,q:68,att:46,corr:21,inc:25},varc:{score:3,pct:49,q:24,att:15,corr:4,inc:11},lrdi:{score:31,pct:98,q:22,att:17,corr:11,inc:6},quant:{score:15,pct:87,q:22,att:14,corr:6,inc:8}},
+  {name:"Mock 3",date:"09/03/2026",label:"CAT 2023 slot 1",overall:{score:86,pct:99.5,q:68,att:46,corr:33,inc:13},varc:{score:24,pct:91,q:24,att:16,corr:10,inc:6},lrdi:{score:24,pct:98.5,q:22,att:12,corr:9,inc:3},quant:{score:38,pct:99.9,q:22,att:18,corr:14,inc:4}},
+  {name:"Mock 4",date:"",label:"PreSimCAT 2",overall:{score:129,pct:99.2,q:68,att:54,corr:45,inc:9},varc:{score:32,pct:82.25,q:24,att:16,corr:12,inc:4},lrdi:{score:46,pct:99.52,q:22,att:18,corr:16,inc:2},quant:{score:51,pct:97.84,q:22,att:20,corr:17,inc:3}},
+  {name:"Mock 5",date:"",label:"PreSimCAT 3",overall:{score:110,pct:99.66,q:68,att:57,corr:41,inc:0},varc:{score:40,pct:null,q:24,att:21,corr:15,inc:0},lrdi:{score:21,pct:null,q:22,att:16,corr:9,inc:0},quant:{score:49,pct:null,q:22,att:20,corr:17,inc:0}},
+  {name:"Mock 6",date:"",label:"SimCAT 1",overall:{score:114,pct:99.67,q:68,att:54,corr:41,inc:0},varc:{score:32,pct:null,q:24,att:17,corr:12,inc:0},lrdi:{score:28,pct:null,q:22,att:18,corr:11,inc:0},quant:{score:54,pct:null,q:22,att:19,corr:18,inc:0}},
+  {name:"Mock 7",date:"",label:"SimCAT 2",overall:{score:110,pct:99.56,q:68,att:45,corr:38,inc:0},varc:{score:24,pct:null,q:24,att:14,corr:9,inc:0},lrdi:{score:45,pct:null,q:22,att:15,corr:15,inc:0},quant:{score:41,pct:null,q:22,att:16,corr:14,inc:0}},
+  {name:"Mock 8",date:"",label:"SimCAT 3",overall:{score:101,pct:99.6,q:68,att:49,corr:36,inc:0},varc:{score:27,pct:null,q:24,att:16,corr:10,inc:0},lrdi:{score:29,pct:null,q:22,att:18,corr:11,inc:0},quant:{score:45,pct:null,q:22,att:15,corr:15,inc:0}},
+  {name:"Mock 9",date:"",label:"SimCAT 4",overall:{score:89,pct:98.84,q:68,att:36,corr:31,inc:0},varc:{score:24,pct:null,q:24,att:12,corr:9,inc:0},lrdi:{score:39,pct:null,q:22,att:13,corr:13,inc:0},quant:{score:26,pct:null,q:22,att:11,corr:9,inc:0}}
+];
+
+let mocks = [];
+let activeSection = 'overall';
+let chartInstances = {};
+
+const COLORS = { accent:'#7c6cf5', teal:'#2dd4a7', amber:'#f5a623', coral:'#f06060' };
+const SEC_COLOR = { overall:'#7c6cf5', varc:'#2dd4a7', lrdi:'#f5a623', quant:'#f06060' };
+
+// ── EXCEL PARSE ──────────────────────────────────────────────
+function parseExcel(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      const parsed = parseRows(rows);
+      if (parsed.length) {
+        mocks = parsed;
+        renderDashboard();
+        showToast(`Loaded ${parsed.length} mock attempts`);
+      } else {
+        showToast('Could not parse data — check format');
+      }
+    } catch(ex) {
+      showToast('Error reading file: ' + ex.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseRows(rows) {
+  const result = [];
+  let current = null;
+  let mockIdx = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i].map(c => String(c||'').trim());
+    const first = r[0].toLowerCase();
+
+    if (first.includes('mock attempt') || first.match(/^mock\s*\d+$/i)) {
+      mockIdx++;
+      current = { name:`Mock ${mockIdx}`, date:'', label:'',
+        overall:{score:0,pct:null,q:0,att:0,corr:0,inc:0},
+        varc:   {score:0,pct:null,q:0,att:0,corr:0,inc:0},
+        lrdi:   {score:0,pct:null,q:0,att:0,corr:0,inc:0},
+        quant:  {score:0,pct:null,q:0,att:0,corr:0,inc:0}
+      };
+      // Try next row for date/label
+      if (i+1 < rows.length) {
+        const nr = rows[i+1].map(c=>String(c||'').trim());
+        if (nr[1] && !nr[0].toLowerCase().match(/section|overall|varc|lrdi|quant/)) {
+          current.date = nr[1];
+          if (nr[2]) current.label = nr[2];
+        }
+      }
+      result.push(current);
+      continue;
+    }
+
+    if (!current) continue;
+
+    const nums = r.slice(1).map(v => { const n=parseFloat(v); return isNaN(n)?0:n; });
+    if (nums.length < 5) continue;
+
+    // cols: Questions, Attempts, Correct, Incorrect, Skipped, Score, Percentile
+    const obj = {
+      q:    nums[0]||0,
+      att:  nums[1]||0,
+      corr: nums[2]||0,
+      inc:  nums[3]||0,
+      score: nums[5] !== undefined && nums[5] ? nums[5] : nums[4]||0,
+      pct:  (nums[6] && nums[6]>0) ? nums[6] : (nums[7] && nums[7]>0 ? nums[7] : null)
+    };
+
+    if (first==='overall') current.overall = obj;
+    else if (first==='varc') current.varc = obj;
+    else if (first==='lrdi') current.lrdi = obj;
+    else if (first==='quant') current.quant = obj;
+  }
+
+  return result.filter(m => m.overall.score > 0);
+}
+
+function loadSample() {
+  mocks = JSON.parse(JSON.stringify(SAMPLE));
+  renderDashboard();
+  showToast('Loaded 9 sample mock attempts');
+}
+
+// ── DASHBOARD ────────────────────────────────────────────────
+function renderDashboard() {
+  document.getElementById('uploadSection').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('resetBtn').style.display = 'block';
+
+  const labels = mocks.map(m => m.name + (m.label ? '\n' + m.label : ''));
+  document.getElementById('mockLabel').innerHTML =
+    `<span>${mocks.length}</span> mock${mocks.length!==1?'s':''} loaded &nbsp;·&nbsp; ` +
+    mocks.filter(m=>m.label).map(m=>`<span>${m.name}: ${m.label}</span>`).join(' · ');
+
+  renderStats();
+  switchSection(activeSection, document.querySelector('.pill.active'));
+}
+
+function renderStats() {
+  const scores = mocks.map(m=>m.overall.score);
+  const best = Math.max(...scores);
+  const bestIdx = scores.indexOf(best);
+  const last = mocks[mocks.length-1];
+  const prev = mocks.length>1 ? mocks[mocks.length-2] : null;
+  const delta = prev ? last.overall.score - prev.overall.score : 0;
+  const pcts = mocks.filter(m=>m.overall.pct).map(m=>m.overall.pct);
+  const avgPct = pcts.length ? (pcts.reduce((a,b)=>a+b,0)/pcts.length).toFixed(1)+'%' : '—';
+  const allAcc = mocks.map(m => m.overall.att>0 ? Math.round(m.overall.corr/m.overall.att*100) : 0);
+  const bestAcc = Math.max(...allAcc);
+
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat accent">
+      <div class="stat-label">Best score</div>
+      <div class="stat-value">${best}</div>
+      <div class="stat-sub">${mocks[bestIdx].name}${mocks[bestIdx].label?' · '+mocks[bestIdx].label:''}</div>
+    </div>
+    <div class="stat teal">
+      <div class="stat-label">Latest score</div>
+      <div class="stat-value">${last.overall.score}</div>
+      <div class="stat-sub">${delta>=0?'▲ +':'▼ '}${Math.abs(delta)} vs ${prev?prev.name:'—'}</div>
+    </div>
+    <div class="stat amber">
+      <div class="stat-label">Avg overall %ile</div>
+      <div class="stat-value">${avgPct}</div>
+      <div class="stat-sub">Across ${pcts.length} reported</div>
+    </div>
+    <div class="stat coral">
+      <div class="stat-label">Best accuracy</div>
+      <div class="stat-value">${bestAcc}%</div>
+      <div class="stat-sub">Overall (all attempts)</div>
+    </div>`;
+}
+
+// ── SECTION TABS ─────────────────────────────────────────────
+function switchSection(sec, btn) {
+  activeSection = sec;
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  destroyCharts();
+
+  if (sec === 'overall') renderOverall();
+  else renderSection(sec);
+}
+
+function destroyCharts() {
+  Object.values(chartInstances).forEach(c => { try { c.destroy(); } catch(e){} });
+  chartInstances = {};
+}
+
+// ── OVERALL TAB ──────────────────────────────────────────────
+function renderOverall() {
+  const labels = mocks.map(m => m.name);
+  const el = document.getElementById('sectionContent');
+
+  el.innerHTML = `
+    <div class="charts-row">
+      <div class="chart-card full">
+        <div class="card-title">Score trend — all sections</div>
+        <div class="legend">
+          <div class="legend-item"><span class="legend-dot" style="background:#7c6cf5"></span>Overall</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#2dd4a7"></span>VARC</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#f5a623"></span>LRDI</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#f06060"></span>Quant</div>
+        </div>
+        <div class="chart-box tall"><canvas id="cAllScore"></canvas></div>
+      </div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="card-title">Overall percentile trend</div>
+        <div class="chart-box"><canvas id="cPct"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="card-title">Correct vs incorrect (overall)</div>
+        <div class="chart-box"><canvas id="cCorrect"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-card" style="margin-bottom:16px">
+      <div class="card-title">All attempts — attempt log</div>
+      <table class="attempt-table">
+        <thead><tr>
+          <th>Mock</th><th>Label</th><th>Date</th>
+          <th>Score</th><th>%ile</th>
+          <th>VARC</th><th>LRDI</th><th>Quant</th>
+          <th>Correct/Att</th><th>Accuracy</th>
+        </tr></thead>
+        <tbody>${mocks.map((m,i) => {
+          const acc = m.overall.att>0 ? Math.round(m.overall.corr/m.overall.att*100) : 0;
+          const pctClass = m.overall.pct>=99 ? 'pct-high' : m.overall.pct>=90 ? 'pct-mid' : 'pct-low';
+          return `<tr>
+            <td>${m.name}</td>
+            <td style="color:var(--text3)">${m.label||'—'}</td>
+            <td style="color:var(--text3)">${m.date||'—'}</td>
+            <td class="score-cell">${m.overall.score}</td>
+            <td>${m.overall.pct!=null ? `<span class="pct-badge ${pctClass}">${m.overall.pct}%</span>` : '<span style="color:var(--text3)">—</span>'}</td>
+            <td style="color:#2dd4a7">${m.varc.score}</td>
+            <td style="color:#f5a623">${m.lrdi.score}</td>
+            <td style="color:#f06060">${m.quant.score}</td>
+            <td>${m.overall.corr}/${m.overall.att}</td>
+            <td>
+              <div class="bar-wrap">
+                <div class="bar-bg"><div class="bar-fill" style="width:${acc}%;background:#7c6cf5"></div></div>
+                <span style="font-size:11px;color:var(--text2)">${acc}%</span>
+              </div>
+            </td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`;
+
+  requestAnimationFrame(() => {
+    chartInstances.allScore = new Chart(document.getElementById('cAllScore'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          mkLine(mocks.map(m=>m.overall.score), 'Overall', '#7c6cf5', true),
+          mkLine(mocks.map(m=>m.varc.score),    'VARC',    '#2dd4a7', false, [5,3]),
+          mkLine(mocks.map(m=>m.lrdi.score),    'LRDI',    '#f5a623', false, [5,3]),
+          mkLine(mocks.map(m=>m.quant.score),   'Quant',   '#f06060', false, [5,3]),
+        ]
+      },
+      options: lineOpts(false, 0)
+    });
+
+    const pctData = mocks.map(m=>m.overall.pct);
+    chartInstances.pct = new Chart(document.getElementById('cPct'), {
+      type: 'line',
+      data: { labels, datasets: [mkLine(pctData, 'Percentile', '#7c6cf5', true)] },
+      options: lineOpts(true, 40)
+    });
+
+    chartInstances.correct = new Chart(document.getElementById('cCorrect'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label:'Correct',   data:mocks.map(m=>m.overall.corr), backgroundColor:'#2dd4a740', borderColor:'#2dd4a7', borderWidth:1.5, borderRadius:3, stack:'s' },
+          { label:'Incorrect', data:mocks.map(m=>m.overall.inc),  backgroundColor:'#f0606040', borderColor:'#f06060', borderWidth:1.5, borderRadius:3, stack:'s' },
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:true, labels:{ color:'#a09fb8', boxWidth:10, font:{size:11} } } },
+        scales:{
+          y:{ stacked:true, grid:{color:'rgba(255,255,255,0.05)'}, ticks:{color:'#5e5d72'} },
+          x:{ stacked:true, grid:{display:false}, ticks:{color:'#5e5d72'} }
+        }
+      }
+    });
+  });
+}
+
+// ── SECTION TAB ──────────────────────────────────────────────
+function renderSection(sec) {
+  const color = SEC_COLOR[sec];
+  const secName = sec.toUpperCase();
+  const labels = mocks.map(m=>m.name);
+  const el = document.getElementById('sectionContent');
+
+  el.innerHTML = `
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="card-title">${secName} score trend</div>
+        <div class="chart-box"><canvas id="cSecScore"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="card-title">${secName} accuracy %</div>
+        <div class="chart-box"><canvas id="cSecAcc"></canvas></div>
+      </div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="card-title">Correct vs incorrect — ${secName}</div>
+        <div class="chart-box"><canvas id="cSecCI"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="card-title">Attempt rate % — ${secName}</div>
+        <div class="chart-box"><canvas id="cSecAR"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-card" style="margin-bottom:16px">
+      <div class="card-title">${secName} — attempt breakdown</div>
+      <table class="attempt-table">
+        <thead><tr>
+          <th>Mock</th><th>Score</th><th>%ile</th>
+          <th>Attempted</th><th>Correct</th><th>Incorrect</th><th>Accuracy</th><th>Attempt rate</th>
+        </tr></thead>
+        <tbody>${mocks.map(m => {
+          const s = m[sec];
+          const acc = s.att>0 ? Math.round(s.corr/s.att*100) : 0;
+          const ar  = s.q>0  ? Math.round(s.att/s.q*100) : 0;
+          const pctClass = s.pct>=99 ? 'pct-high' : s.pct>=90 ? 'pct-mid' : 'pct-low';
+          return `<tr>
+            <td>${m.name}${m.label?'<br><span style="font-size:11px;color:var(--text3)">'+m.label+'</span>':''}</td>
+            <td class="score-cell" style="color:${color}">${s.score}</td>
+            <td>${s.pct!=null ? `<span class="pct-badge ${pctClass}">${s.pct}%</span>` : '<span style="color:var(--text3)">—</span>'}</td>
+            <td>${s.att}</td>
+            <td style="color:#2dd4a7">${s.corr}</td>
+            <td style="color:#f06060">${s.inc}</td>
+            <td>
+              <div class="bar-wrap">
+                <div class="bar-bg"><div class="bar-fill" style="width:${acc}%;background:${color}"></div></div>
+                <span style="font-size:11px;color:var(--text2)">${acc}%</span>
+              </div>
+            </td>
+            <td>
+              <div class="bar-wrap">
+                <div class="bar-bg"><div class="bar-fill" style="width:${ar}%;background:#5e5d72"></div></div>
+                <span style="font-size:11px;color:var(--text2)">${ar}%</span>
+              </div>
+            </td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`;
+
+  requestAnimationFrame(() => {
+    chartInstances.secScore = new Chart(document.getElementById('cSecScore'), {
+      type:'line',
+      data:{ labels, datasets:[mkLine(mocks.map(m=>m[sec].score), secName+' Score', color, true)] },
+      options: lineOpts(false, 0)
+    });
+
+    chartInstances.secAcc = new Chart(document.getElementById('cSecAcc'), {
+      type:'line',
+      data:{ labels, datasets:[mkLine(mocks.map(m=> m[sec].att>0 ? Math.round(m[sec].corr/m[sec].att*100) : 0), 'Accuracy %', color, true)] },
+      options: lineOpts(true, 0)
+    });
+
+    chartInstances.secCI = new Chart(document.getElementById('cSecCI'), {
+      type:'bar',
+      data:{
+        labels,
+        datasets:[
+          {label:'Correct',   data:mocks.map(m=>m[sec].corr), backgroundColor:color+'40', borderColor:color,    borderWidth:1.5, borderRadius:3, stack:'s'},
+          {label:'Incorrect', data:mocks.map(m=>m[sec].inc),  backgroundColor:'#f0606040',borderColor:'#f06060', borderWidth:1.5, borderRadius:3, stack:'s'},
+        ]
+      },
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#a09fb8',boxWidth:10,font:{size:11}}}},scales:{y:{stacked:true,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#5e5d72'}},x:{stacked:true,grid:{display:false},ticks:{color:'#5e5d72'}}}}
+    });
+
+    chartInstances.secAR = new Chart(document.getElementById('cSecAR'), {
+      type:'bar',
+      data:{
+        labels,
+        datasets:[{label:'Attempt rate %', data:mocks.map(m=> m[sec].q>0 ? Math.round(m[sec].att/m[sec].q*100) : 0), backgroundColor:color+'60', borderColor:color, borderWidth:1.5, borderRadius:3, maxBarThickness:32}]
+      },
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:0,max:100,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#5e5d72',callback:v=>v+'%'}},x:{grid:{display:false},ticks:{color:'#5e5d72'}}}}
+    });
+  });
+}
+
+// ── CHART HELPERS ────────────────────────────────────────────
+function mkLine(data, label, color, fill, dash=[]) {
+  return {
+    label, data, spanGaps:true,
+    borderColor: color,
+    backgroundColor: fill ? color+'22' : 'transparent',
+    borderWidth: fill ? 2 : 1.5,
+    borderDash: dash,
+    pointRadius: 4,
+    pointBackgroundColor: color,
+    pointBorderColor: '#0f0f10',
+    pointBorderWidth: 2,
+    fill: fill,
+    tension: 0.35
+  };
+}
+
+function lineOpts(isPct, yMin) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: {
+        min: yMin || undefined,
+        max: isPct ? 100 : undefined,
+        grid: { color: 'rgba(255,255,255,0.05)' },
+        ticks: { color: '#5e5d72', callback: isPct ? v=>v+'%' : undefined }
+      },
+      x: {
+        grid: { display: false },
+        ticks: { color: '#5e5d72', maxRotation: 40 }
+      }
+    }
+  };
+}
+
+// ── UTIL ─────────────────────────────────────────────────────
+function resetApp() {
+  mocks = [];
+  activeSection = 'overall';
+  destroyCharts();
+  document.getElementById('uploadSection').style.display = 'flex';
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('resetBtn').style.display = 'none';
+  document.getElementById('fileInput').value = '';
+  document.querySelector('.pill.active')?.classList.remove('active');
+  document.querySelector('.pill[data-sec="overall"]')?.classList.add('active');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(() => t.style.display='none', 3000);
+}
+
+// ── EVENTS ───────────────────────────────────────────────────
+document.getElementById('fileInput').addEventListener('change', e => {
+  if (e.target.files[0]) parseExcel(e.target.files[0]);
+});
+
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+dz.addEventListener('drop', e => {
+  e.preventDefault();
+  dz.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f) parseExcel(f);
+});
+</script>
+</body>
+</html>
