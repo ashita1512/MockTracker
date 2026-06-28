@@ -555,8 +555,8 @@ function renderSection(sec) {
       data:{
         labels,
         datasets:[
-          {label:'Correct',   data:mocks.map(m=>m[sec].corr), backgroundColor:color+'40', borderColor:color,    borderWidth:1.5, borderRadius:3, stack:'s'},
-          {label:'Incorrect', data:mocks.map(m=>m[sec].inc),  backgroundColor:'#f0606040',borderColor:'#f06060', borderWidth:1.5, borderRadius:3, stack:'s'},
+          {label:'Correct',   data:mocks.map(m=>m[sec].corr), backgroundColor:'#2dd4a740', borderColor:'#2dd4a7', borderWidth:1.5, borderRadius:3, stack:'s'},
+          {label:'Incorrect', data:mocks.map(m=>m[sec].inc),  backgroundColor:'#f0606040',  borderColor:'#f06060', borderWidth:1.5, borderRadius:3, stack:'s'},
         ]
       },
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#a09fb8',boxWidth:10,font:{size:11}}}},scales:{y:{stacked:true,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#5e5d72'}},x:{stacked:true,grid:{display:false},ticks:{color:'#5e5d72'}}}}
